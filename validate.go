@@ -9,32 +9,47 @@ import (
 
 // SetRequestSchema parses a JSON schema representing the expected contents of
 // a request body.
-func (m *Middleware) SetRequestSchema(schemaJSON []byte) error {
+func (m *Middleware) SetRequestSchema(method string, schemaJSON []byte) error {
+	if m.reqSchemas == nil {
+		m.reqSchemas = map[string]map[string]interface{}{}
+	}
+
 	if schemaJSON == nil {
-		m.reqSchema = nil
+		m.reqSchemas[method] = nil
 		return nil
 	}
 
-	err := json.Unmarshal(schemaJSON, &m.reqSchema)
+	var schema map[string]interface{}
+	err := json.Unmarshal(schemaJSON, &schema)
 	if err != nil {
 		log.Println(fmt.Errorf("jsonbody: failed to decode schema: %v", err))
 		return errors.New("failed to decode schema")
 	}
+
+	m.reqSchemas[method] = schema
 
 	return nil
 }
 
 // TODO: create set schema method that parses expected json
 func validateReqBody(expected map[string]interface{}, actual map[string]interface{}) []string {
+	if expected == nil {
+		return []string{}
+	}
+
+	if actual == nil {
+		return []string{"expected request body"}
+	}
+
 	return validateObject("", expected, actual)
 }
 
 func validateObject(key string, expected map[string]interface{}, actual map[string]interface{}) []string {
-	if len(expected) == 0 || len(actual) == 0 {
+	if len(expected) == 0 {
 		return []string{}
 	}
 
-	errs := make([]string, 3)
+	errs := make([]string, 0)
 	for expectedKey, expectedVal := range expected {
 		actualVal, ok := actual[expectedKey]
 		if !ok {
@@ -48,7 +63,7 @@ func validateObject(key string, expected map[string]interface{}, actual map[stri
 }
 
 func validateSingle(key string, expected interface{}, actual interface{}) []string {
-	errs := make([]string, 3)
+	errs := make([]string, 0)
 	switch expected := expected.(type) {
 	case string:
 		if _, ok := actual.(string); !ok {
@@ -80,11 +95,11 @@ func validateSingle(key string, expected interface{}, actual interface{}) []stri
 }
 
 func validateArray(key string, expected []interface{}, actual []interface{}) []string {
-	if len(expected) == 0 || len(actual) == 0 {
+	if len(expected) == 0 {
 		return []string{}
 	}
 
-	errs := make([]string, 3)
+	errs := make([]string, 0)
 
 	for i, actualVal := range actual {
 		errs = append(errs, validateSingle(fmt.Sprintf("%v[%v]", key, i), expected[0], actualVal)...)

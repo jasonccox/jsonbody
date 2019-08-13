@@ -14,8 +14,8 @@ import (
 // using ReqKey as the key and will be of type *map[string]interface{}. The
 // response body can be send by calling Write().
 type Middleware struct {
-	Next      http.Handler
-	reqSchema map[string]interface{}
+	Next       http.Handler
+	reqSchemas map[string]map[string]interface{}
 }
 
 var (
@@ -24,12 +24,15 @@ var (
 )
 
 // NewMiddleware creates a new instance of a jsonbody Middleware. See the documentation
-// for the method SetRequestSchema regarding schemaJSON.
-func NewMiddleware(next http.Handler, schemaJSON []byte) (*Middleware, error) {
+// for the method SetRequestSchema regarding bodySchemas.
+func NewMiddleware(next http.Handler, bodySchemas map[string][]byte) (*Middleware, error) {
 	m := Middleware{Next: next}
-	err := m.SetRequestSchema(schemaJSON)
-	if err != nil {
-		return nil, err
+
+	for method, schema := range bodySchemas {
+		err := m.SetRequestSchema(method, schema)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &m, nil
@@ -53,6 +56,13 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		log.Println(fmt.Errorf("jsonbody: failed to decode body: %v", err))
 		writer.WriteHeader(500)
+		return
+	}
+
+	errs := validateReqBody(m.reqSchemas[r.Method], jsonBody)
+	if len(errs) > 0 {
+		writer.WriteHeader(400)
+		writer.WriteErrors(errs...)
 		return
 	}
 

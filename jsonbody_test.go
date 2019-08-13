@@ -11,6 +11,24 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+type mockReader struct {
+	mock.Mock
+}
+
+func (m mockReader) Read(p []byte) (int, error) {
+	returnVals := m.Called(p)
+	return returnVals.Int(0), returnVals.Error(1)
+}
+
+type mockHandler struct {
+	mock.Mock
+}
+
+func (m *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+	m.Called(w, r)
+}
+
 func TestServeHTTPDefaultsToDefaultServeMux(t *testing.T) {
 	mw, _ := NewMiddleware(nil, nil)
 
@@ -40,13 +58,16 @@ func TestServeHTTPSendsErrBodyIfBodyNotJSON(t *testing.T) {
 	assert.Equal(t, `{"errors":["expected a JSON body"]}`, string(body))
 }
 
-type mockReader struct {
-	mock.Mock
-}
+func TestServeHTTPNotCallNextIfBodyNotJSON(t *testing.T) {
+	next := &mockHandler{}
+	mw := Middleware{Next: next}
 
-func (m mockReader) Read(p []byte) (int, error) {
-	returnVals := m.Called(p)
-	return returnVals.Int(0), returnVals.Error(1)
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not json")))
+
+	next.AssertNotCalled(t, "ServeHTTP", mock.Anything, mock.Anything)
 }
 
 func TestServeHTTPSends500OnOtherError(t *testing.T) {
@@ -64,12 +85,22 @@ func TestServeHTTPSends500OnOtherError(t *testing.T) {
 	assert.Equal(t, 500, recorder.Code)
 }
 
-type mockHandler struct {
-	mock.Mock
-}
+func TestServeHTTPNotCallNextOnOtherError(t *testing.T) {
+	next := &mockHandler{}
+	mw := Middleware{Next: next}
 
-func (m *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	m.Called(w, r)
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+
+	reader := mockReader{}
+	reader.On("Read", mock.Anything).Return(10, errors.New("some err"))
+
+	req := httptest.NewRequest(http.MethodPost, "/", reader)
+	req.ContentLength = 1
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, req)
+
+	next.AssertNotCalled(t, "ServeHTTP", mock.Anything, mock.Anything)
 }
 
 func TestServeHTTPCallsNextCorrectly(t *testing.T) {
@@ -85,5 +116,86 @@ func TestServeHTTPCallsNextCorrectly(t *testing.T) {
 
 	reader, ok := next.Calls[0].Arguments.Get(1).(*http.Request).Body.(Reader)
 	assert.True(t, ok)
-	assert.NotEqual(t, nil, reader.JSON())
+	assert.Equal(t, map[string]interface{}{}, reader.JSON())
+}
+
+func TestServeHTTPSends400IfBodyNotMatchSchema(t *testing.T) {
+	mw := Middleware{}
+	mw.SetRequestSchema(http.MethodPost, []byte("{ \"s\": \"\" }"))
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
+
+	assert.Equal(t, 400, recorder.Code)
+}
+
+func TestServeHTTPSendsErrBOdyIfBodyNotMatchSchema(t *testing.T) {
+	mw := Middleware{}
+	mw.SetRequestSchema(http.MethodPost, []byte("{ \"s\": \"\" }"))
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
+
+	assert.NotEqual(t, 0, recorder.Body.Len())
+}
+
+func TestServeHTTPNotCallNextIfBodyNotMatchSchema(t *testing.T) {
+	next := &mockHandler{}
+	mw := Middleware{Next: next}
+	mw.SetRequestSchema(http.MethodPost, []byte("{ \"s\": \"\" }"))
+
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
+
+	next.AssertNotCalled(t, "ServeHTTP", mock.Anything, mock.Anything)
+}
+
+func TestServeHTTPValidateWithSchemaForMethod(t *testing.T) {
+	next := &mockHandler{}
+	mw := Middleware{Next: next}
+	mw.SetRequestSchema(http.MethodGet, []byte("{ \"s\": \"\" }"))
+
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
+
+	assert.Equal(t, 200, recorder.Code)
+	next.AssertCalled(t, "ServeHTTP", mock.AnythingOfType("Writer"), mock.AnythingOfType("*http.Request"))
+}
+
+func TestNewMiddlewareSetsBodySchemas(t *testing.T) {
+	bodySchemas := map[string][]byte{
+		http.MethodGet:  []byte("{ \"a\": false }"),
+		http.MethodPost: []byte("{ \"b\": 0 }"),
+		http.MethodPut:  []byte("{ \"c\": \"s\" }"),
+	}
+
+	m, err := NewMiddleware(nil, bodySchemas)
+	assert.Equal(t, nil, err)
+
+	assert.Equal(t, map[string]interface{}{"a": false}, m.reqSchemas[http.MethodGet])
+	assert.Equal(t, map[string]interface{}{"b": float64(0)}, m.reqSchemas[http.MethodPost])
+	assert.Equal(t, map[string]interface{}{"c": "s"}, m.reqSchemas[http.MethodPut])
+}
+
+func TestNewMiddlewareReturnsErrIfAnyBodySchemasInvalid(t *testing.T) {
+	bodySchemas := map[string][]byte{
+		http.MethodGet:  []byte("{ \"a\": false }"),
+		http.MethodPost: []byte("{ \"b\": 0"),
+		http.MethodPut:  []byte("{ \"c\": \"s\" }"),
+	}
+
+	m, err := NewMiddleware(nil, bodySchemas)
+	assert.NotEqual(t, nil, err)
+	assert.Equal(t, (*Middleware)(nil), m)
+}
+
+func TestNewMiddlewareNotSetSchemasIfNil(t *testing.T) {
+	m, err := NewMiddleware(nil, nil)
+	assert.Equal(t, nil, err)
+
+	assert.Equal(t, map[string]map[string]interface{}(nil), m.reqSchemas)
 }
