@@ -95,7 +95,7 @@ func TestWriteJSONWritesJSON(t *testing.T) {
 	err := w.WriteJSON(map[string]string{"key": "value"})
 	assert.Equal(t, nil, err)
 
-	assert.Equal(t, []byte("{\"key\":\"value\"}"), mockRW.lastBytes)
+	assert.Equal(t, []byte(`{"key":"value"}`), mockRW.lastBytes)
 }
 
 func TestWriteErrorsReturnsErrIfCalledTwice(t *testing.T) {
@@ -163,7 +163,7 @@ func TestWriteErrorsWritesOneError(t *testing.T) {
 	err := w.WriteErrors("error")
 	assert.Equal(t, nil, err)
 
-	assert.Equal(t, []byte("{\"errors\":[\"error\"]}"), mockRW.lastBytes)
+	assert.Equal(t, []byte(`{"errors":["error"]}`), mockRW.lastBytes)
 }
 
 func TestWriteErrorsWritesMultipleErrors(t *testing.T) {
@@ -176,5 +176,5 @@ func TestWriteErrorsWritesMultipleErrors(t *testing.T) {
 	err := w.WriteErrors("error1", "error2", "error3")
 	assert.Equal(t, nil, err)
 
-	assert.Equal(t, []byte("{\"errors\":[\"error1\",\"error2\",\"error3\"]}"), mockRW.lastBytes)
+	assert.Equal(t, []byte(`{"errors":["error1","error2","error3"]}`), mockRW.lastBytes)
 }
