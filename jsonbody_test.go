@@ -121,7 +121,7 @@ func TestServeHTTPCallsNextCorrectly(t *testing.T) {
 
 func TestServeHTTPSends400IfBodyNotMatchSchema(t *testing.T) {
 	mw := Middleware{}
-	mw.SetRequestSchema(http.MethodPost, []byte(`{ "s": "" }`))
+	mw.SetRequestSchema(http.MethodPost, `{ "s": "" }`)
 
 	recorder := httptest.NewRecorder()
 	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
@@ -131,7 +131,7 @@ func TestServeHTTPSends400IfBodyNotMatchSchema(t *testing.T) {
 
 func TestServeHTTPSendsErrBOdyIfBodyNotMatchSchema(t *testing.T) {
 	mw := Middleware{}
-	mw.SetRequestSchema(http.MethodPost, []byte(`{ "s": "" }`))
+	mw.SetRequestSchema(http.MethodPost, `{ "s": "" }`)
 
 	recorder := httptest.NewRecorder()
 	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
@@ -142,7 +142,7 @@ func TestServeHTTPSendsErrBOdyIfBodyNotMatchSchema(t *testing.T) {
 func TestServeHTTPNotCallNextIfBodyNotMatchSchema(t *testing.T) {
 	next := &mockHandler{}
 	mw := Middleware{Next: next}
-	mw.SetRequestSchema(http.MethodPost, []byte(`{ "s": "" }`))
+	mw.SetRequestSchema(http.MethodPost, `{ "s": "" }`)
 
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
 
@@ -155,7 +155,7 @@ func TestServeHTTPNotCallNextIfBodyNotMatchSchema(t *testing.T) {
 func TestServeHTTPValidateWithSchemaForMethod(t *testing.T) {
 	next := &mockHandler{}
 	mw := Middleware{Next: next}
-	mw.SetRequestSchema(http.MethodGet, []byte(`{ "s": "" }`))
+	mw.SetRequestSchema(http.MethodGet, `{ "s": "" }`)
 
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
 
@@ -167,10 +167,10 @@ func TestServeHTTPValidateWithSchemaForMethod(t *testing.T) {
 }
 
 func TestNewMiddlewareSetsBodySchemas(t *testing.T) {
-	bodySchemas := map[string][]byte{
-		http.MethodGet:  []byte(`{ "a": false }`),
-		http.MethodPost: []byte(`{ "b": 0 }`),
-		http.MethodPut:  []byte(`{ "c": "s" }`),
+	bodySchemas := map[string]string{
+		http.MethodGet:  `{ "a": false }`,
+		http.MethodPost: `{ "b": 0 }`,
+		http.MethodPut:  `{ "c": "s" }`,
 	}
 
 	m, err := NewMiddleware(nil, bodySchemas)
@@ -182,10 +182,10 @@ func TestNewMiddlewareSetsBodySchemas(t *testing.T) {
 }
 
 func TestNewMiddlewareReturnsErrIfAnyBodySchemasInvalid(t *testing.T) {
-	bodySchemas := map[string][]byte{
-		http.MethodGet:  []byte(`{ "a": false }`),
-		http.MethodPost: []byte(`{ "b": 0`),
-		http.MethodPut:  []byte(`{ "c": "s" }`),
+	bodySchemas := map[string]string{
+		http.MethodGet:  `{ "a": false }`,
+		http.MethodPost: `{ "b": 0`,
+		http.MethodPut:  `{ "c": "s" }`,
 	}
 
 	m, err := NewMiddleware(nil, bodySchemas)

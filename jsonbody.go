@@ -10,9 +10,17 @@ import (
 )
 
 // Middleware converts the request body to a map and allows the response to be
-// written as JSON. The request body can be fetched from the request context
-// using ReqKey as the key and will be of type *map[string]interface{}. The
-// response body can be send by calling Write().
+// written as JSON. When Middleware calls the Next http.Handler, it passes it a
+// Writer and a *http.Request with Body set as a Reader. See documentation for
+// Reader and Writer regarding accessing the request body and writing to the
+// response body.
+//
+// Middleware can also optionally validate the request body by checking that its
+// structure matches a pre-defined schema. If the request body does not match the
+// schema, a 404 response with the following JSON body will be sent:
+// 	{
+//		"errors": [ <list of error strings> ]
+//	}
 type Middleware struct {
 	Next       http.Handler
 	reqSchemas map[string]map[string]interface{}
@@ -23,9 +31,11 @@ var (
 	errBadBody   = errors.New("the body of the request was bad")
 )
 
-// NewMiddleware creates a new instance of a jsonbody Middleware. See the documentation
-// for the method SetRequestSchema regarding bodySchemas.
-func NewMiddleware(next http.Handler, bodySchemas map[string][]byte) (*Middleware, error) {
+// NewMiddleware creates a new instance of a jsonbody Middleware.
+//
+// bodySchemas maps HTTP request methods to the expected JSON body to be received.
+// See the documentation for SetRequestSchema for more details.
+func NewMiddleware(next http.Handler, bodySchemas map[string]string) (*Middleware, error) {
 	m := Middleware{Next: next}
 
 	for method, schema := range bodySchemas {
