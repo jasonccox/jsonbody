@@ -95,6 +95,17 @@ var tests = []struct {
 		`{ "a": [] }`,
 		0,
 	},
+	// optional keys
+	{
+		`{"a": [ 0 ], "?b": false }`,
+		`{ "a": [] }`,
+		0,
+	},
+	{
+		`{"a": [ 0 ], "?b": false }`,
+		`{ "a": [], "b": 0 }`,
+		1,
+	},
 }
 
 func TestValidateReqBodyWorks(t *testing.T) {
