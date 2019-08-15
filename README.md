@@ -8,9 +8,9 @@ Just run `go get gitlab.com/jasonccox/jsonbody` and start using [`jsonbody.Middl
 
 ## Examples
 
-### Using the Middleware in a Route
+### Using the `jsonbody.Middleware` in a Route
 
-The following code creates a `jsonbody.Middleware` that will ensure all POST requests to the `/turtle` route have a body matching the given schema. Requests of any other type can have any body.
+The following code creates a `jsonbody.Middleware` that will ensure all POST requests to the `/turtle` route have a body matching the given schema. Requests of any other type can have any JSON body.
 
 ```go
 func main() {
@@ -64,11 +64,11 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	turt := turtle{
 		name:     jsonBody["name"].(string), // we can safely assert the type because the middleware already checked it
-		age:      jsonBody["age"].(float64), // JSON numbers are represented as float64s
+		age:      jsonBody["age"].(float64), // JSON numbers are represented as float64
 		children: jsonBody["children"].([]string)
 	}
 
-	turtDetails := jsonBody["details"].(map[string]interface{}) // JSON objects are represented as map[string]interfaces
+	turtDetails := jsonBody["details"].(map[string]interface{}) // JSON objects are represented as map[string]interface{}
 	turt.aquatic = turtDetails["aquatic"].(bool)
 
 	if s, ok := turtDetails["species"]; ok { // details.species was optional, so we need to make sure it was set before using it
