@@ -60,8 +60,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	jsonBody, err := decodeBody(r)
 	switch {
 	case err == errBadBody:
-		writer.WriteHeader(http.StatusBadRequest)
-		writer.WriteErrors("expected a JSON body")
+		writer.WriteErrors(http.StatusBadRequest, "expected a JSON body")
 		return
 	case err == errServerErr:
 		fallthrough
@@ -73,8 +72,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	errs := validateReqBody(m.reqSchemas[r.Method], jsonBody)
 	if len(errs) > 0 {
-		writer.WriteHeader(http.StatusBadRequest)
-		writer.WriteErrors(errs...)
+		writer.WriteErrors(http.StatusBadRequest, errs...)
 		return
 	}
 

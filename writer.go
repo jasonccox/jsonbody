@@ -19,7 +19,7 @@ type Writer struct {
 // WriteJSON encodes an object as JSON and sends it as the response body, along
 // with the Content-Type header. This method or WriteErrors can only be called
 // once, unless they return an error.
-func (w *Writer) WriteJSON(body interface{}) error {
+func (w *Writer) WriteJSON(statusCode int, body interface{}) error {
 	if w.written {
 		return errors.New("method has already been called once and cannot be called again")
 	}
@@ -31,6 +31,7 @@ func (w *Writer) WriteJSON(body interface{}) error {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
 
 	_, err = w.Write(bytes)
 	if err != nil {
@@ -46,8 +47,8 @@ func (w *Writer) WriteJSON(body interface{}) error {
 // WriteErrors encodes the given errors as a JSON array assigned to the key "errors"
 // and sends it as the response body. This method or WriteJSON can only be called
 // once, unless they return an error.
-func (w *Writer) WriteErrors(errs ...string) error {
-	err := w.WriteJSON(map[string][]string{
+func (w *Writer) WriteErrors(statusCode int, errs ...string) error {
+	err := w.WriteJSON(statusCode, map[string][]string{
 		"errors": errs,
 	})
 

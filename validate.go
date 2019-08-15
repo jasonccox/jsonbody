@@ -83,6 +83,9 @@ func validateObject(key string, expected map[string]interface{}, actual map[stri
 
 	errs := make([]string, 0)
 	for expectedKey, expectedVal := range expected {
+		optional := strings.HasPrefix(expectedKey, "?")
+		expectedKey = strings.TrimPrefix(expectedKey, "?")
+
 		var newKey string
 		if key == "" {
 			newKey = expectedKey
@@ -90,14 +93,9 @@ func validateObject(key string, expected map[string]interface{}, actual map[stri
 			newKey = key + "." + expectedKey
 		}
 
-		// TODO: if a key is just a question mark, allow additional fields; otherwise only allow specified fields
-
-		optional := strings.HasPrefix(expectedKey, "?")
-		expectedKey = strings.TrimPrefix(expectedKey, "?")
-
 		actualVal, ok := actual[expectedKey]
 		if !optional && !ok {
-			errs = append(errs, fmt.Sprintf("expected key %v missing", newKey))
+			errs = append(errs, fmt.Sprintf("expected key '%v' missing", newKey))
 		} else if ok {
 			errs = append(errs, validateSingle(newKey, expectedVal, actualVal)...)
 		}
@@ -111,25 +109,25 @@ func validateSingle(key string, expected interface{}, actual interface{}) []stri
 	switch expected := expected.(type) {
 	case string:
 		if _, ok := actual.(string); !ok {
-			errs = append(errs, fmt.Sprintf("value for key %v expected to be of type string", key))
+			errs = append(errs, fmt.Sprintf("value for key '%v' expected to be of type string", key))
 		}
 	case bool:
 		if _, ok := actual.(bool); !ok {
-			errs = append(errs, fmt.Sprintf("value for key %v expected to be of type boolean", key))
+			errs = append(errs, fmt.Sprintf("value for key '%v' expected to be of type boolean", key))
 		}
 	case float64:
 		if _, ok := actual.(float64); !ok {
-			errs = append(errs, fmt.Sprintf("value for key %v expected to be of type number", key))
+			errs = append(errs, fmt.Sprintf("value for key '%v' expected to be of type number", key))
 		}
 	case []interface{}:
 		if actualArray, ok := actual.([]interface{}); !ok {
-			errs = append(errs, fmt.Sprintf("value for key %v expected to be of type array", key))
+			errs = append(errs, fmt.Sprintf("value for key '%v' expected to be of type array", key))
 		} else {
 			errs = append(errs, validateArray(key, expected, actualArray)...)
 		}
 	case map[string]interface{}:
 		if actualObj, ok := actual.(map[string]interface{}); !ok {
-			errs = append(errs, fmt.Sprintf("value for key %v expected to be of type object", key))
+			errs = append(errs, fmt.Sprintf("value for key '%v' expected to be of type object", key))
 		} else {
 			errs = append(errs, validateObject(key, expected, actualObj)...)
 		}
