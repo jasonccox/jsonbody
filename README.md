@@ -16,7 +16,7 @@ The following code creates a `jsonbody.Middleware` that will ensure all POST req
 func main() {
 
 	// create the middleware
-	middleware := jsonbody.NewMiddleware(handler{}, map[string]string{
+	middleware, err := jsonbody.NewMiddleware(handler{}, map[string]string{
 		http.MethodPost: `{
 			"name": "",         	// required key "name" with string value
 			"age": 0,           	// required key "age" with number value
@@ -25,8 +25,11 @@ func main() {
 				"aquatic": false    // required key "aquatic" with boolean value
 			},
 			"children": ["name"]	// required key children with array of string values
-		}`
+		}`,
 	})
+	if err != nil {
+		log.Fatalf("creating jsonbody.Middleware failed: %v\n", err)
+	}
 
 	// use the middleware in the route
 	http.Handle("/turtle", middleware)
@@ -76,15 +79,13 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if turt.age < 0.0 {
-		jsonWriter.WriteHeader(http.StatusBadRequest)
-		jsonWriter.WriteErrors("age must be positive") // sends back an error body
+		jsonWriter.WriteErrors(http.StatusBadRequest, "age must be positive") // sends back an error body
 		return
 	}
 
 	// do some processing here...
 
-	jsonWriter.WriteHeader(http.StatusCreated)
-	jsonWriter.WriteJSON(turt) // converts turt to JSON and writes it as the response body
+	jsonWriter.WriteJSON(http.StatusCreated, turt) // converts turt to JSON and writes it as the response body
 }
 ```
 
