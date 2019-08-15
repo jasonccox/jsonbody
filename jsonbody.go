@@ -1,3 +1,5 @@
+// Package jsonbody is a Golang middleware library that makes receiving JSON web
+// request bodies, validating them, and sending JSON response bodies easy.
 package jsonbody
 
 import (
