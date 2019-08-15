@@ -60,20 +60,20 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	jsonBody, err := decodeBody(r)
 	switch {
 	case err == errBadBody:
-		writer.WriteHeader(400)
+		writer.WriteHeader(http.StatusBadRequest)
 		writer.WriteErrors("expected a JSON body")
 		return
 	case err == errServerErr:
 		fallthrough
 	case err != nil:
 		log.Println(fmt.Errorf("jsonbody: failed to decode body: %v", err))
-		writer.WriteHeader(500)
+		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	errs := validateReqBody(m.reqSchemas[r.Method], jsonBody)
 	if len(errs) > 0 {
-		writer.WriteHeader(400)
+		writer.WriteHeader(http.StatusBadRequest)
 		writer.WriteErrors(errs...)
 		return
 	}
@@ -91,6 +91,8 @@ func decodeBody(r *http.Request) (map[string]interface{}, error) {
 	if r.ContentLength == 0 {
 		return nil, errBadBody
 	}
+
+	// TODO: find a way to reset the body after reading
 
 	body := make([]byte, r.ContentLength)
 	_, err := r.Body.Read(body)
