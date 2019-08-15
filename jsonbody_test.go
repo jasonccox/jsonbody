@@ -166,6 +166,14 @@ func TestServeHTTPValidateWithSchemaForMethod(t *testing.T) {
 	next.AssertCalled(t, "ServeHTTP", mock.AnythingOfType("Writer"), mock.AnythingOfType("*http.Request"))
 }
 
+func TestNewMiddlewareSetsNext(t *testing.T) {
+	next := http.FileServer(nil)
+
+	mw, _ := NewMiddleware(next, nil)
+
+	assert.Equal(t, next, mw.Next)
+}
+
 func TestNewMiddlewareSetsBodySchemas(t *testing.T) {
 	bodySchemas := map[string]string{
 		http.MethodGet:  `{ "a": false }`,

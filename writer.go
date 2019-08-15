@@ -8,17 +8,17 @@ import (
 	"net/http"
 )
 
-// Writer is an extension of a generic http.ResponseWriter. It provides the method
-// WriteJSON for writing an object the the response body as JSON, as well as the
-// method WriteErrors for easily writing errors to the response body.
+// Writer is an extension of a generic http.ResponseWriter. It provides methods
+// for writing an object to the response body as JSON and for easily writing
+// errors to the response body.
 type Writer struct {
 	http.ResponseWriter
 	written bool
 }
 
 // WriteJSON encodes an object as JSON and sends it as the response body, along
-// with the Content-Type header. This method can only be called once, unless it
-// returns an error.
+// with the Content-Type header. This method or WriteErrors can only be called
+// once, unless they return an error.
 func (w *Writer) WriteJSON(body interface{}) error {
 	if w.written {
 		return errors.New("method has already been called once and cannot be called again")
@@ -44,7 +44,8 @@ func (w *Writer) WriteJSON(body interface{}) error {
 }
 
 // WriteErrors encodes the given errors as a JSON array assigned to the key "errors"
-// and sends it as the response body.
+// and sends it as the response body. This method or WriteJSON can only be called
+// once, unless they return an error.
 func (w *Writer) WriteErrors(errs ...string) error {
 	err := w.WriteJSON(map[string][]string{
 		"errors": errs,

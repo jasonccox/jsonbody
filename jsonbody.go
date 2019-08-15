@@ -10,7 +10,7 @@ import (
 )
 
 // Middleware converts the request body to a map and allows the response to be
-// written as JSON. When Middleware calls the Next http.Handler, it passes it a
+// written as JSON. When Middleware calls the Next.ServeHTTP(), it passes it a
 // Writer and a *http.Request with Body set as a Reader. See documentation for
 // Reader and Writer regarding accessing the request body and writing to the
 // response body.
@@ -31,12 +31,14 @@ var (
 	errBadBody   = errors.New("the body of the request was bad")
 )
 
-// NewMiddleware creates a new instance of a jsonbody Middleware.
+// NewMiddleware creates a new instance of a Middleware.
+//
+// If next is nil, it will default to http.DefaultServeMux.
 //
 // bodySchemas maps HTTP request methods to the expected JSON body to be received.
 // See the documentation for SetRequestSchema for more details.
 func NewMiddleware(next http.Handler, bodySchemas map[string]string) (*Middleware, error) {
-	m := Middleware{Next: next}
+	m := &Middleware{Next: next}
 
 	for method, schema := range bodySchemas {
 		err := m.SetRequestSchema(method, schema)
@@ -45,7 +47,7 @@ func NewMiddleware(next http.Handler, bodySchemas map[string]string) (*Middlewar
 		}
 	}
 
-	return &m, nil
+	return m, nil
 }
 
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {

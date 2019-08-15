@@ -2,7 +2,7 @@ package jsonbody
 
 import "io"
 
-// Reader is an extension of a generic io.Reader. It provides the method JSON for
+// Reader is an extension of a generic io.Reader. It provides a method for
 // retrieving the JSON request body as a map[string]interface{}.
 type Reader struct {
 	io.ReadCloser
