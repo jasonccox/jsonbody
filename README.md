@@ -1,3 +1,5 @@
+[![GoDoc](https://godoc.org/gitlab.com/jasonccox/jsonbody?status.svg)](https://godoc.org/gitlab.com/jasonccox/jsonbody)
+
 # jsonbody
 
 jsonbody is a Golang middleware library that makes receiving JSON web request bodies, validating them, and sending JSON response bodies easy.
