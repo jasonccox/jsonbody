@@ -135,7 +135,7 @@ func TestValidateReqBodyReturnsErrorIfActualNil(t *testing.T) {
 func TestSetRequestSchemaSetsSchemaToNilIfNil(t *testing.T) {
 	m := Middleware{}
 	err := m.SetRequestSchema(http.MethodGet, "")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, map[string]interface{}(nil), m.reqSchemas[http.MethodGet])
 }
@@ -143,7 +143,7 @@ func TestSetRequestSchemaSetsSchemaToNilIfNil(t *testing.T) {
 func TestSetRequestSchemaSetsIfNotNil(t *testing.T) {
 	m := Middleware{}
 	err := m.SetRequestSchema(http.MethodPost, "{}")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
-	assert.NotEqual(t, nil, m.reqSchemas[http.MethodPost])
+	assert.NotNil(t, m.reqSchemas[http.MethodPost])
 }

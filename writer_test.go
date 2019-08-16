@@ -35,10 +35,10 @@ func TestWriteJSONReturnsErrIfCalledTwice(t *testing.T) {
 	w := Writer{ResponseWriter: recorder}
 
 	err := w.WriteJSON(200, "hi")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	err = w.WriteJSON(200, "hello")
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err)
 }
 
 func TestWriteJSONReturnsErrIfWriteFails(t *testing.T) {
@@ -50,7 +50,7 @@ func TestWriteJSONReturnsErrIfWriteFails(t *testing.T) {
 	mockRW.On("WriteHeader", mock.Anything).Return()
 
 	err := w.WriteJSON(200, "hi")
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err)
 }
 
 func TestWriteJSONAllowsMultipleCallsIfErr(t *testing.T) {
@@ -64,10 +64,10 @@ func TestWriteJSONAllowsMultipleCallsIfErr(t *testing.T) {
 	mockRW.On("WriteHeader", mock.Anything).Return()
 
 	err := w.WriteJSON(200, "hi")
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err)
 
 	err = w.WriteJSON(200, "hello")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 }
 
 func TestWriteJSONWritesContentTypeHeader(t *testing.T) {
@@ -75,7 +75,7 @@ func TestWriteJSONWritesContentTypeHeader(t *testing.T) {
 	w := Writer{ResponseWriter: recorder}
 
 	err := w.WriteJSON(200, "hello")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
 }
@@ -85,7 +85,7 @@ func TestWriteJSONWritesStatusCode(t *testing.T) {
 	w := Writer{ResponseWriter: recorder}
 
 	err := w.WriteJSON(200, "hello")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, 200, recorder.Code)
 }
@@ -99,7 +99,7 @@ func TestWriteJSONWritesJSON(t *testing.T) {
 	mockRW.On("WriteHeader", mock.Anything).Return()
 
 	err := w.WriteJSON(200, map[string]string{"key": "value"})
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, []byte(`{"key":"value"}`), mockRW.lastBytes)
 }
@@ -109,7 +109,7 @@ func TestWriteErrorsReturnsErrIfCalledTwice(t *testing.T) {
 	w := Writer{ResponseWriter: recorder}
 
 	err := w.WriteErrors(400, "hi")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	err = w.WriteErrors(400, "hello")
 	assert.NotEqual(t, nil, err)
@@ -125,7 +125,7 @@ func TestWriteErrorsReturnsErrIfWriteFails(t *testing.T) {
 	mockRW.On("WriteHeader", mock.Anything).Return()
 
 	err := w.WriteErrors(400, "hi")
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err)
 }
 
 func TestWriteErrorsAllowsMultipleCallsIfErr(t *testing.T) {
@@ -139,10 +139,10 @@ func TestWriteErrorsAllowsMultipleCallsIfErr(t *testing.T) {
 	mockRW.On("WriteHeader", mock.Anything).Return()
 
 	err := w.WriteErrors(400, "hi")
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err)
 
 	err = w.WriteErrors(400, "hello")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 }
 
 func TestWriteErrorsWritesContentTypeHeader(t *testing.T) {
@@ -150,7 +150,7 @@ func TestWriteErrorsWritesContentTypeHeader(t *testing.T) {
 	w := Writer{ResponseWriter: recorder}
 
 	err := w.WriteErrors(400, "hello")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
 }
@@ -160,7 +160,7 @@ func TestWriteErrorsWritesStatusCode(t *testing.T) {
 	w := Writer{ResponseWriter: recorder}
 
 	err := w.WriteErrors(400, "hello")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, 400, recorder.Code)
 }
@@ -174,7 +174,7 @@ func TestWriteErrorsWritesOneError(t *testing.T) {
 	mockRW.On("WriteHeader", mock.Anything).Return()
 
 	err := w.WriteErrors(400, "error")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, []byte(`{"errors":["error"]}`), mockRW.lastBytes)
 }
@@ -188,7 +188,7 @@ func TestWriteErrorsWritesMultipleErrors(t *testing.T) {
 	mockRW.On("WriteHeader", mock.Anything).Return()
 
 	err := w.WriteErrors(400, "error1", "error2", "error3")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, []byte(`{"errors":["error1","error2","error3"]}`), mockRW.lastBytes)
 }

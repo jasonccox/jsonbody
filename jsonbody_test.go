@@ -182,7 +182,7 @@ func TestNewMiddlewareSetsBodySchemas(t *testing.T) {
 	}
 
 	m, err := NewMiddleware(nil, bodySchemas)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, map[string]interface{}{"a": false}, m.reqSchemas[http.MethodGet])
 	assert.Equal(t, map[string]interface{}{"b": float64(0)}, m.reqSchemas[http.MethodPost])
@@ -197,13 +197,13 @@ func TestNewMiddlewareReturnsErrIfAnyBodySchemasInvalid(t *testing.T) {
 	}
 
 	m, err := NewMiddleware(nil, bodySchemas)
-	assert.NotEqual(t, nil, err)
+	assert.NotNil(t, err)
 	assert.Equal(t, (*Middleware)(nil), m)
 }
 
 func TestNewMiddlewareNotSetSchemasIfNil(t *testing.T) {
 	m, err := NewMiddleware(nil, nil)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, map[string]map[string]interface{}(nil), m.reqSchemas)
 }
