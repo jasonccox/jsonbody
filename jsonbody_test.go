@@ -2,6 +2,7 @@ package jsonbody
 
 import (
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -35,6 +36,48 @@ func TestServeHTTPDefaultsToDefaultServeMux(t *testing.T) {
 	mw.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/", nil))
 
 	assert.Equal(t, http.DefaultServeMux, mw.Next)
+}
+
+func TestServeHTTPIgnoresEmptyBodyIfNoSchemaSet(t *testing.T) {
+	mw, _ := NewMiddleware(nil, nil)
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", nil))
+
+	assert.Equal(t, 404, recorder.Code) // DefaultServeMux sends 404 with no routes set up
+}
+
+func TestServeHTTPSends400IfBodyEmptyAndSchemaSet(t *testing.T) {
+	mw, _ := NewMiddleware(nil, map[string]string{http.MethodPost: "{}"})
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", nil))
+
+	assert.Equal(t, 400, recorder.Code)
+}
+
+func TestServeHTTPSendsErrBodyIfBodyEmptyAndSchemaSet(t *testing.T) {
+	mw, _ := NewMiddleware(nil, map[string]string{http.MethodPost: "{}"})
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", nil))
+
+	body := make([]byte, recorder.Body.Len())
+	recorder.Body.Read(body)
+
+	assert.Equal(t, `{"errors":["expected a JSON body"]}`, string(body))
+}
+
+func TestServeHTTPNotCallNextIfBodyEmptyAndSchemaSet(t *testing.T) {
+	next := &mockHandler{}
+	mw, _ := NewMiddleware(next, map[string]string{http.MethodPost: "{}"})
+
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", nil))
+
+	next.AssertNotCalled(t, "ServeHTTP", mock.Anything, mock.Anything)
 }
 
 func TestServeHTTPSends400IfBodyNotJSON(t *testing.T) {
@@ -164,6 +207,20 @@ func TestServeHTTPValidateWithSchemaForMethod(t *testing.T) {
 
 	assert.Equal(t, 200, recorder.Code)
 	next.AssertCalled(t, "ServeHTTP", mock.AnythingOfType("Writer"), mock.AnythingOfType("*http.Request"))
+}
+
+func TestServeHTTPResetsBody(t *testing.T) {
+	next := &mockHandler{}
+	mw := Middleware{Next: next}
+
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+
+	recorder := httptest.NewRecorder()
+	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
+
+	receivedBody, err := ioutil.ReadAll(next.Calls[0].Arguments.Get(1).(*http.Request).Body)
+	assert.Nil(t, err)
+	assert.Equal(t, "{}", string(receivedBody))
 }
 
 func TestNewMiddlewareSetsNext(t *testing.T) {

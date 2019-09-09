@@ -3,19 +3,21 @@
 package jsonbody
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 )
 
 // Middleware converts the request body to a map and allows the response to be
 // written as JSON. When Middleware calls the Next.ServeHTTP(), it passes it a
-// Writer and a *http.Request with Body set as a Reader. See documentation for
-// Reader and Writer regarding accessing the request body and writing to the
-// response body.
+// Writer and a *http.Request with Body set as a jsonbody.Reader. See documentation
+// for jsonbody.Reader and jsonbody.Writer regarding accessing the request body
+// and writing to the response body.
 //
 // Middleware can also optionally validate the request body by checking that its
 // structure matches a pre-defined schema. If the request body does not match the
@@ -89,23 +91,19 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func decodeBody(r *http.Request) (map[string]interface{}, error) {
 	if r.ContentLength == 0 {
-		return nil, errBadBody
+		return nil, nil // validateReqBody will determine whether an empty body is an error or not
 	}
 
-	// TODO: find a way to reset the body after reading
-
 	body := make([]byte, r.ContentLength)
+	defer r.Body.Close()
 	_, err := r.Body.Read(body)
 	if err != nil && err != io.EOF {
 		log.Println(fmt.Errorf("jsonbody: failed to read entire body: %v", err))
 		return nil, errServerErr
 	}
 
-	err = r.Body.Close()
-	if err != nil {
-		log.Println(fmt.Errorf("jsonbody: failed to close body: %v", err))
-		return nil, errServerErr
-	}
+	// reset body in case future handlers want to read it
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
 	var bodyJSON interface{}
 	err = json.Unmarshal(body, &bodyJSON)

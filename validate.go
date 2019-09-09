@@ -21,8 +21,8 @@ import (
 // must be present but can have any contents. See the example below for further
 // clarification.
 //
-// Setting schemaJSON to "" (the empty string) indicates that any body (including
-// none at all) should be accepted.
+// Setting schemaJSON to "" (the empty string) indicates that any JSON body
+// (including none at all) should be accepted.
 //
 // Example Schema
 // 	m.SetRequestSchema(http.MethodPost, `{
@@ -70,7 +70,7 @@ func validateReqBody(expected map[string]interface{}, actual map[string]interfac
 	}
 
 	if actual == nil {
-		return []string{"expected request body"}
+		return []string{"expected a JSON body"}
 	}
 
 	return validateObject("", expected, actual)
