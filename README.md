@@ -6,7 +6,7 @@ jsonbody is a Golang middleware library that makes receiving JSON web request bo
 
 ## Installation
 
-Just run `go get gitlab.com/jasonccox/jsonbody` and start using [`jsonbody.Middleware`](https://godoc.org/gitlab.com/jasonccox/jsonbody#Middleware) in your routes!
+Just import `gitlab.com/jasonccox/jsonbody` and start using [`jsonbody.Middleware`](https://godoc.org/gitlab.com/jasonccox/jsonbody#Middleware) in your routes!
 
 ## Examples
 
@@ -15,6 +15,8 @@ Just run `go get gitlab.com/jasonccox/jsonbody` and start using [`jsonbody.Middl
 The following code creates a `jsonbody.Middleware` that will ensure all POST requests to the `/turtle` route have a body matching the given schema. Requests of any other type can have any JSON body.
 
 ```go
+import "gitlab.com/jasonccox/jsonbody"
+
 func main() {
 
 	// create the middleware
@@ -45,6 +47,8 @@ func main() {
 The following code uses the `jsonbody.Reader` and `jsonbody.Writer` to handle a POST request.
 
 ```go
+import "gitlab.com/jasonccox/jsonbody"
+
 type handler struct {}
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
