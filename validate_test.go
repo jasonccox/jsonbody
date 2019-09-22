@@ -2,7 +2,6 @@ package jsonbody
 
 import (
 	"encoding/json"
-	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -132,18 +131,19 @@ func TestValidateReqBodyReturnsErrorIfActualNil(t *testing.T) {
 	assert.Equal(t, 1, len(errs))
 }
 
-func TestSetRequestSchemaSetsSchemaToNilIfNil(t *testing.T) {
-	m := Middleware{}
-	err := m.SetRequestSchema(http.MethodGet, "")
+func TestParseSchemaReturnsNilIfSchemaEmpty(t *testing.T) {
+	schema, err := parseSchema("")
 	assert.Nil(t, err)
-
-	assert.Equal(t, map[string]interface{}(nil), m.reqSchemas[http.MethodGet])
+	assert.Nil(t, schema)
 }
 
-func TestSetRequestSchemaSetsIfNotNil(t *testing.T) {
-	m := Middleware{}
-	err := m.SetRequestSchema(http.MethodPost, "{}")
+func TestParseSchemaReturnsSchemaIfSchemaNotEmpty(t *testing.T) {
+	schema, err := parseSchema("{}")
 	assert.Nil(t, err)
+	assert.Equal(t, make(map[string]interface{}), schema)
+}
 
-	assert.NotNil(t, m.reqSchemas[http.MethodPost])
+func TestParseSchemaReturnsErrIfNotJSON(t *testing.T) {
+	_, err := parseSchema("not json")
+	assert.NotNil(t, err)
 }

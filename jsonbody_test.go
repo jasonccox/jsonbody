@@ -16,7 +16,7 @@ type mockReader struct {
 	mock.Mock
 }
 
-func (m mockReader) Read(p []byte) (int, error) {
+func (m *mockReader) Read(p []byte) (int, error) {
 	returnVals := m.Called(p)
 	return returnVals.Int(0), returnVals.Error(1)
 }
@@ -30,37 +30,111 @@ func (m *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.Called(w, r)
 }
 
-func TestServeHTTPDefaultsToDefaultServeMux(t *testing.T) {
-	mw, _ := NewMiddleware(nil, nil)
-
-	mw.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/", nil))
-
-	assert.Equal(t, http.DefaultServeMux, mw.Next)
-}
-
-func TestServeHTTPIgnoresEmptyBodyIfNoSchemaSet(t *testing.T) {
-	mw, _ := NewMiddleware(nil, nil)
+func TestServeHTTPIgnoresWrongContentTypeIfNoSchemaSet(t *testing.T) {
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{next: next}
 
 	recorder := httptest.NewRecorder()
-	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", nil))
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.Header.Set("Content-Type", "text/html")
+	mw.ServeHTTP(recorder, request)
 
-	assert.Equal(t, 404, recorder.Code) // DefaultServeMux sends 404 with no routes set up
+	assert.Equal(t, 200, recorder.Code)
 }
 
-func TestServeHTTPSends400IfBodyEmptyAndSchemaSet(t *testing.T) {
-	mw, _ := NewMiddleware(nil, map[string]string{http.MethodPost: "{}"})
+func TestServeHTTPSends400IfWrongContentTypeAndSchemaSet(t *testing.T) {
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{
+		next:   next,
+		schema: make(map[string]interface{}),
+	}
 
 	recorder := httptest.NewRecorder()
-	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", nil))
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.Header.Set("Content-Type", "text/html")
+	mw.ServeHTTP(recorder, request)
 
 	assert.Equal(t, 400, recorder.Code)
 }
 
-func TestServeHTTPSendsErrBodyIfBodyEmptyAndSchemaSet(t *testing.T) {
-	mw, _ := NewMiddleware(nil, map[string]string{http.MethodPost: "{}"})
+func TestServeHTTPSendsErrorsIfWrongContentTypeAndSchemaSet(t *testing.T) {
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{
+		next:   next,
+		schema: make(map[string]interface{}),
+	}
 
 	recorder := httptest.NewRecorder()
-	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", nil))
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.Header.Set("Content-Type", "text/html")
+	mw.ServeHTTP(recorder, request)
+
+	body := make([]byte, recorder.Body.Len())
+	recorder.Body.Read(body)
+
+	assert.Equal(t, `{"errors":["content type must be application/json"]}`, string(body))
+}
+
+func TestServeHTTPNotCallNextIfWrongContentTypeAndSchemaSet(t *testing.T) {
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{
+		next:   next,
+		schema: make(map[string]interface{}),
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.Header.Set("Content-Type", "text/html")
+	mw.ServeHTTP(recorder, request)
+
+	next.AssertNotCalled(t, "ServeHTTP", mock.Anything, mock.Anything)
+}
+
+func TestServeHTTPIgnoresEmptyBodyIfNoSchemaSet(t *testing.T) {
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{next: next}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.Header.Set("Content-Type", "application/json")
+	mw.ServeHTTP(recorder, request)
+
+	assert.Equal(t, 200, recorder.Code)
+}
+
+func TestServeHTTPSends400IfBodyEmptyAndSchemaSet(t *testing.T) {
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{
+		next:   next,
+		schema: make(map[string]interface{}),
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.Header.Set("Content-Type", "application/json")
+	mw.ServeHTTP(recorder, request)
+
+	assert.Equal(t, 400, recorder.Code)
+}
+
+func TestServeHTTPSendsErrorsIfBodyEmptyAndSchemaSet(t *testing.T) {
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{
+		next:   next,
+		schema: make(map[string]interface{}),
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.Header.Set("Content-Type", "application/json")
+	mw.ServeHTTP(recorder, request)
 
 	body := make([]byte, recorder.Body.Len())
 	recorder.Body.Read(body)
@@ -70,30 +144,43 @@ func TestServeHTTPSendsErrBodyIfBodyEmptyAndSchemaSet(t *testing.T) {
 
 func TestServeHTTPNotCallNextIfBodyEmptyAndSchemaSet(t *testing.T) {
 	next := &mockHandler{}
-	mw, _ := NewMiddleware(next, map[string]string{http.MethodPost: "{}"})
+	mw := &middleware{
+		next:   next,
+		schema: make(map[string]interface{}),
+	}
 
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
 
 	recorder := httptest.NewRecorder()
-	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", nil))
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.Header.Set("Content-Type", "application/json")
+	mw.ServeHTTP(recorder, request)
 
 	next.AssertNotCalled(t, "ServeHTTP", mock.Anything, mock.Anything)
 }
 
 func TestServeHTTPSends400IfBodyNotJSON(t *testing.T) {
-	mw, _ := NewMiddleware(nil, nil)
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{next: next}
 
 	recorder := httptest.NewRecorder()
-	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not json")))
+	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not json"))
+	request.Header.Set("Content-Type", "application/json")
+	mw.ServeHTTP(recorder, request)
 
 	assert.Equal(t, 400, recorder.Code)
 }
 
 func TestServeHTTPSendsErrBodyIfBodyNotJSON(t *testing.T) {
-	mw, _ := NewMiddleware(nil, nil)
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{next: next}
 
 	recorder := httptest.NewRecorder()
-	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not json")))
+	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not json"))
+	request.Header.Set("Content-Type", "application/json")
+	mw.ServeHTTP(recorder, request)
 
 	body := make([]byte, recorder.Body.Len())
 	recorder.Body.Read(body)
@@ -103,23 +190,27 @@ func TestServeHTTPSendsErrBodyIfBodyNotJSON(t *testing.T) {
 
 func TestServeHTTPNotCallNextIfBodyNotJSON(t *testing.T) {
 	next := &mockHandler{}
-	mw := Middleware{Next: next}
+	mw := middleware{next: next}
 
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
 
 	recorder := httptest.NewRecorder()
-	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not json")))
+	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not json"))
+	request.Header.Set("Content-Type", "application/json")
+	mw.ServeHTTP(recorder, request)
 
 	next.AssertNotCalled(t, "ServeHTTP", mock.Anything, mock.Anything)
 }
 
 func TestServeHTTPSends500OnOtherError(t *testing.T) {
-	mw, _ := NewMiddleware(nil, nil)
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	mw := &middleware{next: next}
 
 	reader := mockReader{}
 	reader.On("Read", mock.Anything).Return(10, errors.New("some err"))
 
-	req := httptest.NewRequest(http.MethodPost, "/", reader)
+	req := httptest.NewRequest(http.MethodPost, "/", &reader)
 	req.ContentLength = 1
 
 	recorder := httptest.NewRecorder()
@@ -130,14 +221,14 @@ func TestServeHTTPSends500OnOtherError(t *testing.T) {
 
 func TestServeHTTPNotCallNextOnOtherError(t *testing.T) {
 	next := &mockHandler{}
-	mw := Middleware{Next: next}
+	mw := middleware{next: next}
 
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
 
 	reader := mockReader{}
 	reader.On("Read", mock.Anything).Return(10, errors.New("some err"))
 
-	req := httptest.NewRequest(http.MethodPost, "/", reader)
+	req := httptest.NewRequest(http.MethodPost, "/", &reader)
 	req.ContentLength = 1
 
 	recorder := httptest.NewRecorder()
@@ -148,7 +239,7 @@ func TestServeHTTPNotCallNextOnOtherError(t *testing.T) {
 
 func TestServeHTTPCallsNextCorrectly(t *testing.T) {
 	next := &mockHandler{}
-	mw := Middleware{Next: next}
+	mw := middleware{next: next}
 
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
 
@@ -163,8 +254,13 @@ func TestServeHTTPCallsNextCorrectly(t *testing.T) {
 }
 
 func TestServeHTTPSends400IfBodyNotMatchSchema(t *testing.T) {
-	mw := Middleware{}
-	mw.SetRequestSchema(http.MethodPost, `{ "s": "" }`)
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	schema, _ := parseSchema(`{ "s": "" }`)
+	mw := middleware{
+		next:   next,
+		schema: schema,
+	}
 
 	recorder := httptest.NewRecorder()
 	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
@@ -172,9 +268,14 @@ func TestServeHTTPSends400IfBodyNotMatchSchema(t *testing.T) {
 	assert.Equal(t, 400, recorder.Code)
 }
 
-func TestServeHTTPSendsErrBOdyIfBodyNotMatchSchema(t *testing.T) {
-	mw := Middleware{}
-	mw.SetRequestSchema(http.MethodPost, `{ "s": "" }`)
+func TestServeHTTPSendsErrorsIfBodyNotMatchSchema(t *testing.T) {
+	next := &mockHandler{}
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
+	schema, _ := parseSchema(`{ "s": "" }`)
+	mw := middleware{
+		next:   next,
+		schema: schema,
+	}
 
 	recorder := httptest.NewRecorder()
 	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
@@ -184,8 +285,11 @@ func TestServeHTTPSendsErrBOdyIfBodyNotMatchSchema(t *testing.T) {
 
 func TestServeHTTPNotCallNextIfBodyNotMatchSchema(t *testing.T) {
 	next := &mockHandler{}
-	mw := Middleware{Next: next}
-	mw.SetRequestSchema(http.MethodPost, `{ "s": "" }`)
+	schema, _ := parseSchema(`{ "s": "" }`)
+	mw := middleware{
+		next:   next,
+		schema: schema,
+	}
 
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
 
@@ -195,23 +299,9 @@ func TestServeHTTPNotCallNextIfBodyNotMatchSchema(t *testing.T) {
 	next.AssertNotCalled(t, "ServeHTTP", mock.Anything, mock.Anything)
 }
 
-func TestServeHTTPValidateWithSchemaForMethod(t *testing.T) {
-	next := &mockHandler{}
-	mw := Middleware{Next: next}
-	mw.SetRequestSchema(http.MethodGet, `{ "s": "" }`)
-
-	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
-
-	recorder := httptest.NewRecorder()
-	mw.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
-
-	assert.Equal(t, 200, recorder.Code)
-	next.AssertCalled(t, "ServeHTTP", mock.AnythingOfType("Writer"), mock.AnythingOfType("*http.Request"))
-}
-
 func TestServeHTTPResetsBody(t *testing.T) {
 	next := &mockHandler{}
-	mw := Middleware{Next: next}
+	mw := middleware{next: next}
 
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Return()
 
@@ -223,44 +313,27 @@ func TestServeHTTPResetsBody(t *testing.T) {
 	assert.Equal(t, "{}", string(receivedBody))
 }
 
-func TestNewMiddlewareSetsNext(t *testing.T) {
-	next := http.FileServer(nil)
+func TestNewMiddlewareAddsParsedSchemaToHandler(t *testing.T) {
+	mw := NewMiddleware(`{"schema": "s"}`)
+	next := &mockHandler{}
+	handler := mw(next).(*middleware)
 
-	mw, _ := NewMiddleware(next, nil)
-
-	assert.Equal(t, next, mw.Next)
+	expectedSchema, _ := parseSchema(`{"schema": "s"}`)
+	assert.Equal(t, expectedSchema, handler.schema)
 }
 
-func TestNewMiddlewareSetsBodySchemas(t *testing.T) {
-	bodySchemas := map[string]string{
-		http.MethodGet:  `{ "a": false }`,
-		http.MethodPost: `{ "b": 0 }`,
-		http.MethodPut:  `{ "c": "s" }`,
+func TestNewMiddlewareAddsNextToHandler(t *testing.T) {
+	mw := NewMiddleware("")
+	next := &mockHandler{}
+	handler := mw(next).(*middleware)
+
+	assert.Equal(t, next, handler.next)
+}
+
+func TestNewMiddlewarePanicsIfInvalidSchema(t *testing.T) {
+	shouldPanic := func() {
+		NewMiddleware("not json")
 	}
 
-	m, err := NewMiddleware(nil, bodySchemas)
-	assert.Nil(t, err)
-
-	assert.Equal(t, map[string]interface{}{"a": false}, m.reqSchemas[http.MethodGet])
-	assert.Equal(t, map[string]interface{}{"b": float64(0)}, m.reqSchemas[http.MethodPost])
-	assert.Equal(t, map[string]interface{}{"c": "s"}, m.reqSchemas[http.MethodPut])
-}
-
-func TestNewMiddlewareReturnsErrIfAnyBodySchemasInvalid(t *testing.T) {
-	bodySchemas := map[string]string{
-		http.MethodGet:  `{ "a": false }`,
-		http.MethodPost: `{ "b": 0`,
-		http.MethodPut:  `{ "c": "s" }`,
-	}
-
-	m, err := NewMiddleware(nil, bodySchemas)
-	assert.NotNil(t, err)
-	assert.Equal(t, (*Middleware)(nil), m)
-}
-
-func TestNewMiddlewareNotSetSchemasIfNil(t *testing.T) {
-	m, err := NewMiddleware(nil, nil)
-	assert.Nil(t, err)
-
-	assert.Equal(t, map[string]map[string]interface{}(nil), m.reqSchemas)
+	assert.Panics(t, shouldPanic)
 }

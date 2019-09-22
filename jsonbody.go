@@ -13,21 +13,63 @@ import (
 	"net/http"
 )
 
-// Middleware converts the request body to a map and allows the response to be
-// written as JSON. When Middleware calls the Next.ServeHTTP(), it passes it a
-// Writer and a *http.Request with Body set as a jsonbody.Reader. See documentation
-// for jsonbody.Reader and jsonbody.Writer regarding accessing the request body
-// and writing to the response body.
+// NewMiddleware creates a middleware that converts the request body to a map and
+// allows the response to be written as JSON. When Middleware calls the
+// next.ServeHTTP(), it passes it a Writer and a *http.Request with Body set as a
+// Reader. See documentation for Reader and Writer regarding accessing the request
+// body and writing to the response body.
 //
-// Middleware can also optionally validate the request body by checking that its
-// structure matches a pre-defined schema. If the request body does not match the
-// schema, a 404 response with the following JSON body will be sent:
+// The middleware can also optionally validate the content type and request body
+// by checking that its structure matches a pre-defined schema. If the request
+// body does not match the schema, a 400 response with the following JSON body
+// will be sent:
 // 	{
 //		"errors": [ <list of error strings> ]
 //	}
-type Middleware struct {
-	Next       http.Handler
-	reqSchemas map[string]map[string]interface{}
+//
+// The schemaJSON should essentially be a sample request body. All keys in the
+// schemaJSON (unless they begin with a question mark) will be expected to be
+// present in request bodies that pass through the Middleware. Additionally, all
+// values will be expected to have the same type as the values in the schema.
+// Arrays in the schema need only have one element in them against which all
+// array elements in the real request will be verified. Finally, an empty object
+// or empty array in the schema indicates that the object/array in the requests
+// must be present but can have any contents. See the example below for further
+// clarification.
+//
+// Setting schemaJSON to "" (the empty string) indicates that any JSON body
+// (including none at all) and any content type should be accepted.
+//
+// Example Schema (don't actually include comments in yours)
+// 	`{
+//		"title": "", // body must contain a key "title" with a string value
+//		"upvotes": 0, // body must contain a key "upvotes" with a number value
+// 		"?public": false, // body may contain a key "public" with a boolean value
+//		"comments": [ // body must contain a key "comments" with an array value
+//			"" // each element in the "comments" array must be a string
+//		],
+//		"author": { // body must contain a key "author" with an object value
+//			"name": "",	// "author" object must contain a key "name" with a string value
+//			...
+//		},
+//		"metadata": {}, // body must contain a key "metadata" with an object value,
+//		                // but the value can contain any keys, or none at all
+//		"tags": [], // body must contain a key "tags" with an array value, but the
+// 		            // elements can be of any type
+//		...
+//	}`
+func NewMiddleware(schemaJSON string) func(next http.Handler) http.Handler {
+	schemaMap, err := parseSchema(schemaJSON)
+	if err != nil {
+		panic("jsonbody: unexpected error while parsing schemaJSON: " + err.Error())
+	}
+
+	return func(next http.Handler) http.Handler {
+		return &middleware{
+			next:   next,
+			schema: schemaMap,
+		}
+	}
 }
 
 var (
@@ -35,33 +77,20 @@ var (
 	errBadBody   = errors.New("the body of the request was bad")
 )
 
-// NewMiddleware creates a new instance of a Middleware.
-//
-// If next is nil, it will default to http.DefaultServeMux.
-//
-// bodySchemas maps HTTP request methods to the expected JSON body to be received.
-// See the documentation for SetRequestSchema for more details.
-func NewMiddleware(next http.Handler, bodySchemas map[string]string) (*Middleware, error) {
-	m := &Middleware{Next: next}
-
-	for method, schema := range bodySchemas {
-		err := m.SetRequestSchema(method, schema)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return m, nil
+type middleware struct {
+	next   http.Handler
+	schema map[string]interface{}
 }
 
-func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if m.Next == nil {
-		m.Next = http.DefaultServeMux
-	}
-
+func (m *middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writer := Writer{ResponseWriter: w}
 
-	jsonBody, err := decodeBody(r)
+	if m.schema != nil && r.Header.Get("Content-Type") != "application/json" {
+		writer.WriteErrors(http.StatusBadRequest, "content type must be application/json")
+		return
+	}
+
+	body, err := decodeBody(r)
 	switch {
 	case err == errBadBody:
 		writer.WriteErrors(http.StatusBadRequest, "expected a JSON body")
@@ -74,7 +103,7 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	errs := validateReqBody(m.reqSchemas[r.Method], jsonBody)
+	errs := validateReqBody(m.schema, body)
 	if len(errs) > 0 {
 		writer.WriteErrors(http.StatusBadRequest, errs...)
 		return
@@ -82,11 +111,11 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	reader := Reader{
 		ReadCloser: r.Body,
-		json:       jsonBody,
+		json:       body,
 	}
 	r.Body = reader
 
-	m.Next.ServeHTTP(writer, r)
+	m.next.ServeHTTP(writer, r)
 }
 
 func decodeBody(r *http.Request) (map[string]interface{}, error) {
