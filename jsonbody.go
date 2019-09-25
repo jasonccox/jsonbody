@@ -14,7 +14,7 @@ import (
 )
 
 // NewMiddleware creates a middleware that converts the request body to a map and
-// allows the response to be written as JSON. When Middleware calls the
+// allows the response to be written as JSON. When the middleware calls
 // next.ServeHTTP(), it passes it a Writer and a *http.Request with Body set as a
 // Reader. See documentation for Reader and Writer regarding accessing the request
 // body and writing to the response body.
@@ -29,7 +29,7 @@ import (
 //
 // The schemaJSON should essentially be a sample request body. All keys in the
 // schemaJSON (unless they begin with a question mark) will be expected to be
-// present in request bodies that pass through the Middleware. Additionally, all
+// present in request bodies that pass through the middleware. Additionally, all
 // values will be expected to have the same type as the values in the schema.
 // Arrays in the schema need only have one element in them against which all
 // array elements in the real request will be verified. Finally, an empty object
@@ -41,23 +41,25 @@ import (
 // (including none at all) and any content type should be accepted.
 //
 // Example Schema (don't actually include comments in yours)
-// 	`{
-//		"title": "", // body must contain a key "title" with a string value
-//		"upvotes": 0, // body must contain a key "upvotes" with a number value
-// 		"?public": false, // body may contain a key "public" with a boolean value
-//		"comments": [ // body must contain a key "comments" with an array value
-//			"" // each element in the "comments" array must be a string
+// 	{
+//		"title": "",        // body must contain a key "title" with a string value
+//		"upvotes": 0,       // body must contain a key "upvotes" with a number value
+// 		"?public": false,   // body may contain a key "public" with a boolean value
+//		"comments": [       // body must contain a key "comments" with an array value
+//			""              // each element in the "comments" array must be a string
 //		],
-//		"author": { // body must contain a key "author" with an object value
-//			"name": "",	// "author" object must contain a key "name" with a string value
+//		"author": {         // body must contain a key "author" with an object value
+//			"name": "",	    // "author" object must contain a key "name" with a
+//                          // string value
 //			...
 //		},
-//		"metadata": {}, // body must contain a key "metadata" with an object value,
-//		                // but the value can contain any keys, or none at all
-//		"tags": [], // body must contain a key "tags" with an array value, but the
-// 		            // elements can be of any type
+//		"metadata": {},     // body must contain a key "metadata" with an object
+//		                    // value, but the value can contain any keys, or none at
+//                          // all
+//		"tags": [],         // body must contain a key "tags" with an array value,
+// 		                    // but the elements can be of any type
 //		...
-//	}`
+//	}
 func NewMiddleware(schemaJSON string) func(next http.Handler) http.Handler {
 	schemaMap, err := parseSchema(schemaJSON)
 	if err != nil {
