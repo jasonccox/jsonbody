@@ -6,37 +6,32 @@ jsonbody is a Golang middleware library that makes receiving JSON web request bo
 
 ## Installation
 
-Just import `gitlab.com/jasonccox/jsonbody` and start using [`jsonbody.Middleware`](https://godoc.org/gitlab.com/jasonccox/jsonbody#Middleware) in your routes!
+Just import `gitlab.com/jasonccox/jsonbody` and start using [`jsonbody.NewMiddleware`](https://godoc.org/gitlab.com/jasonccox/jsonbody#NewMiddleware)!
 
 ## Examples
 
-### Using the `jsonbody.Middleware` in a Route
+### Using the Middleware in a Route
 
-The following code creates a `jsonbody.Middleware` that will ensure all POST requests to the `/turtle` route have a body matching the given schema. Requests of any other type can have any JSON body.
+The following code creates a middleware function that will ensure all requests to the `/turtle` route have a body matching the given schema.
 
 ```go
 import "gitlab.com/jasonccox/jsonbody"
 
 func main() {
 
-	// create the middleware
-	middleware, err := jsonbody.NewMiddleware(handler{}, map[string]string{
-		http.MethodPost: `{
-			"name": "",         	// required key "name" with string value
-			"age": 0,           	// required key "age" with number value
-			"details": {        	// required key "details" with object value
-				"?species": "",     // optional key "species" with string value
-				"aquatic": false    // required key "aquatic" with boolean value
-			},
-			"children": ["name"]	// required key children with array of string values
-		}`,
-	})
-	if err != nil {
-		log.Fatalf("creating jsonbody.Middleware failed: %v\n", err)
-	}
+	// create the middleware function - a func(next http.Handler) http.Handler
+    middleware := jsonbody.NewMiddleware(`{
+        "name": "",
+        "age": 0,
+        "details": {
+            "?species": "",
+            "aquatic": false
+        },
+        "children": ["name"]
+    }`)
 
 	// use the middleware in the route
-	http.Handle("/turtle", middleware)
+	http.Handle("/turtle", middleware(myHandler{})
 
 	...
 }
@@ -49,9 +44,9 @@ The following code uses the `jsonbody.Reader` and `jsonbody.Writer` to handle a 
 ```go
 import "gitlab.com/jasonccox/jsonbody"
 
-type handler struct {}
+type myHandler struct {}
 
-func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusNotFound)
 		return
