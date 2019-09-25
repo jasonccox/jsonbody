@@ -6,7 +6,7 @@ jsonbody is a Golang middleware library that makes receiving JSON web request bo
 
 ## Installation
 
-Just import `gitlab.com/jasonccox/jsonbody` and start using [`jsonbody.NewMiddleware`](https://godoc.org/gitlab.com/jasonccox/jsonbody#NewMiddleware)!
+Just run `go get gitlab.com/jasonccox/jsonbody` and import `gitlab.com/jasonccox/jsonbody` in your code.
 
 ## Examples
 
