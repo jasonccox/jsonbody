@@ -1,4 +1,4 @@
-[![GoDoc](https://godoc.org/gitlab.com/jasonccox/jsonbody?status.svg)](https://godoc.org/gitlab.com/jasonccox/jsonbody)
+[![GoDoc](https://godoc.org/github.com/jasonccox/jsonbody?status.svg)](https://godoc.org/github.com/jasonccox/jsonbody)
 
 # jsonbody
 
@@ -6,7 +6,7 @@ jsonbody is a Golang middleware library that makes receiving JSON web request bo
 
 ## Installation
 
-Just run `go get gitlab.com/jasonccox/jsonbody` and import `gitlab.com/jasonccox/jsonbody` in your code.
+Just run `go get github.com/jasonccox/jsonbody` and import `github.com/jasonccox/jsonbody` in your code.
 
 ## Examples
 
@@ -15,7 +15,7 @@ Just run `go get gitlab.com/jasonccox/jsonbody` and import `gitlab.com/jasonccox
 The following code creates a middleware function that will ensure all requests to the `/turtle` route have a body matching the given schema.
 
 ```go
-import "gitlab.com/jasonccox/jsonbody"
+import "github.com/jasonccox/jsonbody"
 
 func main() {
 
@@ -42,7 +42,7 @@ func main() {
 The following code uses the `jsonbody.Reader` and `jsonbody.Writer` to handle a POST request.
 
 ```go
-import "gitlab.com/jasonccox/jsonbody"
+import "github.com/jasonccox/jsonbody"
 
 type myHandler struct {}
 
@@ -92,4 +92,4 @@ func (h myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 ## Documentation
 
-For more in-depth information, check out the [godoc](https://godoc.org/gitlab.com/jasonccox/jsonbody).
+For more in-depth information, check out the [godoc](https://godoc.org/github.com/jasonccox/jsonbody).

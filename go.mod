@@ -1,4 +1,4 @@
-module gitlab.com/jasonccox/jsonbody
+module github.com/jasonccox/jsonbody
 
 go 1.13
 
